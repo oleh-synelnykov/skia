@@ -25,6 +25,8 @@
 #include <android/hardware_buffer.h>
 #endif
 
+#include <iostream>
+
 class SkData;
 class SkCanvas;
 class SkImage;
@@ -559,6 +561,12 @@ public:
             AHardwareBuffer* hardwareBuffer,
             GrSurfaceOrigin surfaceOrigin = kTopLeft_GrSurfaceOrigin);
 #endif
+
+    ~SkImage() override { 
+        if (tagDeletion) {
+            std::cout << "Destroying image " << this << " with unique id: " << fUniqueID << std::endl;
+        }
+    }
 
     /** Returns a SkImageInfo describing the width, height, color type, alpha type, and color space
         of the SkImage.
@@ -1284,6 +1292,10 @@ public:
     */
     sk_sp<SkImage> reinterpretColorSpace(sk_sp<SkColorSpace> newColorSpace) const;
 
+    void tag() {
+        tagDeletion = true;
+    }
+
 private:
     SkImage(const SkImageInfo& info, uint32_t uniqueID);
 
@@ -1293,6 +1305,7 @@ private:
 
     SkImageInfo     fInfo;
     const uint32_t  fUniqueID;
+    bool tagDeletion = false;
 
     sk_sp<SkImage> withMipmaps(sk_sp<SkMipmap>) const;
 

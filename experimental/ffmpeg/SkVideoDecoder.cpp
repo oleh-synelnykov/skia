@@ -10,6 +10,8 @@
 #include "include/core/SkImage.h"
 #include "include/core/SkYUVAPixmaps.h"
 
+#include <iostream>
+
 static SkYUVColorSpace get_yuvspace(AVColorSpace space) {
     // this is pretty incomplete -- TODO: look to convert more AVColorSpaces
     switch (space) {
@@ -92,6 +94,14 @@ const SkColorSpacePrimaries gPrimaries[AVCOL_PRI_NB] = {
     [AVCOL_PRI_BT2020]    = { 0.708f, 0.292f, 0.170f, 0.797f, 0.131f, 0.046f, ExpandWP(WP_D65) },
     [AVCOL_PRI_JEDEC_P22] = { 0.630f, 0.340f, 0.295f, 0.605f, 0.155f, 0.077f, ExpandWP(WP_D65) },
 };
+
+void frameDeleter(AVFrame* f) {
+    if (f) {
+        std::cout << "Freeing frame " << f << std::endl;
+        //av_frame_unref(f);
+        av_frame_free(&f);
+    }
+}
 
 sk_sp<SkColorSpace> make_colorspace(AVColorPrimaries primaries,
                                     AVColorTransferCharacteristic transfer) {
@@ -254,6 +264,75 @@ sk_sp<SkImage> SkVideoDecoder::convertFrame(const AVFrame* frame) {
     return SkImage::MakeFromBitmap(bm);
 }
 
+SkVideoDecoder::AVFrameUniquePtr SkVideoDecoder::nextFrame(double* timeStamp) {
+    double defaultTimeStampStorage = 0;
+    if (!timeStamp) {
+        timeStamp = &defaultTimeStampStorage;
+    }
+
+    if (fFormatCtx == nullptr) {
+        return AVFrameUniquePtr{nullptr, frameDeleter};
+    }
+
+    if (fMode == kProcessing_Mode) {
+        // We sit in a loop, waiting for the codec to have received enough data (packets)
+        // to have at least one frame available.
+        // Treat non-zero return as EOF (or error, which we will decide is also EOF)
+        while (!av_read_frame(fFormatCtx, &fPacket)) {
+            if (fPacket.stream_index != fStreamIndex) {
+                // got a packet for a stream other than our (video) stream, so continue
+                continue;
+            }
+
+            int ret = avcodec_send_packet(fDecoderCtx, &fPacket);
+            if (ret == AVERROR(EAGAIN)) {
+                // may signal that we have plenty already, encouraging us to call receive_frame
+                // so we don't treat this as an error.
+                ret = 0;
+            }
+            (void)check_err(ret);   // we try to continue if there was an error
+
+            int silentList[] = {
+                -35,    // Resource temporarily unavailable (need more packets)
+                0,
+            };
+
+            AVFrame* frame = av_frame_alloc();
+            std::cout << "Allocated frame " << frame << std::endl;
+
+            if (check_err(avcodec_receive_frame(fDecoderCtx, frame), silentList)) {
+                // this may be just "needs more input", so we try to continue
+            } else {
+                *timeStamp = this->computeTimeStamp(frame);
+                return AVFrameUniquePtr{frame, frameDeleter};
+            }
+        }
+
+        fMode = kDraining_Mode;
+        (void)avcodec_send_packet(fDecoderCtx, nullptr);    // signal to start draining
+    }
+    if (fMode == kDraining_Mode) {
+        AVFrame* frame = av_frame_alloc();
+        std::cout << "Allocated frame " << frame << std::endl;
+        if (avcodec_receive_frame(fDecoderCtx, frame) >= 0) {
+            *timeStamp = this->computeTimeStamp(frame);
+            return AVFrameUniquePtr{frame, frameDeleter};
+        }
+        // else we decide we're done
+        fMode = kDone_Mode;
+    }
+    return AVFrameUniquePtr{nullptr, frameDeleter};
+}
+
+sk_sp<SkImage> SkVideoDecoder::toImage(AVFrameUniquePtr&& frame) {
+    auto image = convertFrame(frame.get());
+    if (image) {
+        std::cout << "Created image: " << image.get() << " with unique id: " << image->uniqueID() <<  std::endl;
+        image->tag();
+    }
+    return image;
+}
+
 sk_sp<SkImage> SkVideoDecoder::nextImage(double* timeStamp) {
     double defaultTimeStampStorage = 0;
     if (!timeStamp) {
@@ -290,6 +369,8 @@ sk_sp<SkImage> SkVideoDecoder::nextImage(double* timeStamp) {
                 // this may be just "needs more input", so we try to continue
             } else {
                 *timeStamp = this->computeTimeStamp(fFrame);
+                //av_frame_unref(fFrame); ?
+                //av_packet_unref(&fPacket); ?
                 return this->convertFrame(fFrame);
             }
         }
@@ -372,7 +453,7 @@ bool SkVideoDecoder::loadStream(std::unique_ptr<SkStream> stream) {
         return false;
     }
 
-    AVCodec* codec;
+    const AVCodec* codec;
     fStreamIndex = av_find_best_stream(fFormatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
     if (fStreamIndex < 0) {
         SkDebugf("av_find_best_stream failed %d\n", fStreamIndex);
@@ -400,7 +481,6 @@ bool SkVideoDecoder::loadStream(std::unique_ptr<SkStream> stream) {
     SkASSERT(fFrame);
 
     av_init_packet(&fPacket);   // is there a "free" call?
-
     fMode = kProcessing_Mode;
 
     return true;

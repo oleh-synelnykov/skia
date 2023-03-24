@@ -18,6 +18,10 @@ extern "C" {
 #include "libswscale/swscale.h"
 }
 
+#include <memory>
+
+void frameDeleter(AVFrame* f);
+
 class SkStream;
 
 class SkVideoDecoder {
@@ -33,6 +37,11 @@ public:
 
     SkISize dimensions() const;
     double duration() const;    // in seconds
+
+    using AVFrameUniquePtr = std::unique_ptr<AVFrame, void(*)(AVFrame*)>;
+
+    AVFrameUniquePtr nextFrame(double* timeStamp = nullptr);
+    sk_sp<SkImage> toImage(AVFrameUniquePtr&& frame);
 
     // Returns each image in the video, or nullptr on eof
     sk_sp<SkImage> nextImage(double* timeStamp = nullptr);

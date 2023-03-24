@@ -163,11 +163,16 @@ bool SkVideoEncoder::init(int fps) {
     SkASSERT(fFormatCtx);
     fFormatCtx->pb = fStreamCtx;
 
+    // for ffmpeg 5+ add const
+    //const AVOutputFormat *output_format = fFormatCtx->oformat;
     AVOutputFormat *output_format = fFormatCtx->oformat;
 
     if (output_format->video_codec == AV_CODEC_ID_NONE) {
         return false;
     }
+
+    // for ffmpeg 5+ add const
+    //const AVCodec* codec = avcodec_find_encoder(output_format->video_codec);
     AVCodec* codec = avcodec_find_encoder(output_format->video_codec);
     SkASSERT(codec);
 

@@ -36,6 +36,8 @@
 #include "include/gpu/vk/GrVkTypes.h"
 #endif
 
+#include <iostream>
+
 #define ASSERT_SINGLE_OWNER SKGPU_ASSERT_SINGLE_OWNER(fImageContext->priv().singleOwner())
 
 GrProxyProvider::GrProxyProvider(GrImageContext* imageContext) : fImageContext(imageContext) {}

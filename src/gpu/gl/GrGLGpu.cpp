@@ -45,6 +45,8 @@
 #include <cmath>
 #include <memory>
 
+#include <iostream>
+
 #define GL_CALL(X) GR_GL_CALL(this->glInterface(), X)
 #define GL_CALL_RET(RET, X) GR_GL_CALL_RET(this->glInterface(), RET, X)
 
@@ -1708,8 +1710,12 @@ GrGLuint GrGLGpu::createTexture(SkISize dimensions,
     SkASSERT(format != GrGLFormat::kUnknown);
     SkASSERT(!GrGLFormatIsCompressed(format));
 
+    std::cout << "Going to get GL texture" << std::endl;
+
     GrGLuint id = 0;
     GL_CALL(GenTextures(1, &id));
+
+    std::cout << "Did it!" << std::endl;
 
     if (!id) {
         return 0;

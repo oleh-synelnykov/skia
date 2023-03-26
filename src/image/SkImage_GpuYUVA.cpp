@@ -29,6 +29,8 @@
 #include "src/image/SkImage_Gpu.h"
 #include "src/image/SkImage_GpuYUVA.h"
 
+#include <iostream>
+
 static constexpr auto kAssumedColorType = kRGBA_8888_SkColorType;
 
 SkImage_GpuYUVA::SkImage_GpuYUVA(sk_sp<GrImageContext> context,
@@ -260,17 +262,29 @@ sk_sp<SkImage> SkImage::MakeFromYUVAPixmaps(GrRecordingContext* context,
                                             GrMipmapped buildMips,
                                             bool limitToMaxTextureSize,
                                             sk_sp<SkColorSpace> imageColorSpace) {
+
+    std::cout << "SkImage::MakeFromYUVAPixmaps" << std::endl;
+
     if (!context) {
         return nullptr;  // until we impl this for raster backend
     }
+
+    std::cout << "SkImage::MakeFromYUVAPixmaps: will check if pixmaps valid" << std::endl;
 
     if (!pixmaps.isValid()) {
         return nullptr;
     }
 
+    std::cout << "Will check mipmap support: context: " << context << std::endl;
+    std::cout << "Will check mipmap support: priv.caps: " << context->priv().caps() << std::endl;
+    std::cout << "Will check mipmap support: priv.context: " << context->priv().context() << std::endl;
+    std::cout << "Will check mipmap support: mipmapSupprt: " << context->priv().caps()->mipmapSupport() << std::endl;
+
     if (!context->priv().caps()->mipmapSupport()) {
         buildMips = GrMipMapped::kNo;
     }
+
+    std::cout << "SkImage::MakeFromYUVAPixmaps: resize pixmaps if necessary" << std::endl;
 
     // Resize the pixmaps if necessary.
     int numPlanes = pixmaps.numPlanes();
@@ -304,6 +318,8 @@ sk_sp<SkImage> SkImage::MakeFromYUVAPixmaps(GrRecordingContext* context,
         pixmapsToUpload = &tempPixmaps;
     }
 
+    std::cout << "SkImage::MakeFromYUVAPixmaps: convert to texture proxies, numPlanes:" << numPlanes << std::endl;
+
     // Convert to texture proxies.
     GrSurfaceProxyView views[SkYUVAInfo::kMaxPlanes];
     GrColorType pixmapColorTypes[SkYUVAInfo::kMaxPlanes];
@@ -311,10 +327,13 @@ sk_sp<SkImage> SkImage::MakeFromYUVAPixmaps(GrRecordingContext* context,
         // Turn the pixmap into a GrTextureProxy
         SkBitmap bmp;
         bmp.installPixels(pixmapsToUpload->plane(i));
+        std::cout << "SkImage::MakeFromYUVAPixmaps: will GrMakeUncachedBitmapProxyView" << std::endl;
         std::tie(views[i], std::ignore) = GrMakeUncachedBitmapProxyView(context, bmp, buildMips);
         if (!views[i]) {
+            std::cout << "SkImage::MakeFromYUVAPixmaps: return nullptr" << std::endl;
             return nullptr;
         }
+        std::cout << "SkImage::MakeFromYUVAPixmaps: will SkColorTypeToGrColorType" << std::endl;
         pixmapColorTypes[i] = SkColorTypeToGrColorType(bmp.colorType());
     }
 

@@ -212,6 +212,7 @@ double SkVideoDecoder::computeTimeStamp(const AVFrame* frame) const {
 }
 
 sk_sp<SkImage> SkVideoDecoder::convertFrame(const AVFrame* frame) {
+    std::cout << "Enter SkVideoDecoder::convertFrame" << std::endl;
     auto yuv_space = get_yuvspace(frame->colorspace);
 
     // we have a 1-entry cache for converting colorspaces
@@ -229,14 +230,18 @@ sk_sp<SkImage> SkVideoDecoder::convertFrame(const AVFrame* frame) {
 
     switch (frame->format) {
         case AV_PIX_FMT_YUV420P:
+            std::cout << "SkVideoDecoder::convertFrame: case AV_PIX_FMT_YUV420P" << std::endl;
             if (auto image = make_yuv_420(fRecordingContext, frame->width, frame->height,
                                           frame->data, frame->linesize, yuv_space, fCSCache.fCS)) {
+                std::cout << "SkVideoDecoder::convertFrame: success" << std::endl;
                 return image;
             }
             break;
         default:
             break;
     }
+
+    std::cout << "SkVideoDecoder::convertFrame: fallback to swscalse" << std::endl;
 
     // General N32 fallback.
     const auto info = SkImageInfo::MakeN32(frame->width, frame->height,

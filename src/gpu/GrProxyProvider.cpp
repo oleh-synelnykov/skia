@@ -36,6 +36,8 @@
 #include "include/gpu/vk/GrVkTypes.h"
 #endif
 
+#include <iostream>
+
 #define ASSERT_SINGLE_OWNER SKGPU_ASSERT_SINGLE_OWNER(fImageContext->priv().singleOwner())
 
 GrProxyProvider::GrProxyProvider(GrImageContext* imageContext) : fImageContext(imageContext) {}
@@ -340,6 +342,7 @@ sk_sp<GrTextureProxy> GrProxyProvider::createNonMippedProxyFromBitmap(const SkBi
                 SkASSERT(desc.fMipmapped == GrMipmapped::kNo);
                 GrMipLevel mipLevel = {bitmap.getPixels(), bitmap.rowBytes(), nullptr};
                 auto colorType = SkColorTypeToGrColorType(bitmap.colorType());
+                std::cout << "Going to create texture and return LazyCallbackResult" << std::endl;
                 return LazyCallbackResult(resourceProvider->createTexture(
                         desc.fDimensions,
                         desc.fFormat,

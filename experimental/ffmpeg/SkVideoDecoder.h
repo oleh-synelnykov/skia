@@ -38,9 +38,10 @@ public:
     double duration() const;    // in seconds
 
     using AVFrameUniquePtr = std::unique_ptr<AVFrame, void(*)(AVFrame*)>;
+    using AVFrameSharedPtr = std::shared_ptr<AVFrame>;
 
-    AVFrameUniquePtr nextFrame(double* timeStamp = nullptr);
-    sk_sp<SkImage> toImage(AVFrameUniquePtr&& frame);
+    AVFrameSharedPtr nextFrame(double* timeStamp = nullptr);
+    sk_sp<SkImage> toImage(const AVFrameSharedPtr& frame);
 
     // Returns each image in the video, or nullptr on eof
     sk_sp<SkImage> nextImage(double* timeStamp = nullptr);

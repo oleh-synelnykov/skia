@@ -261,14 +261,14 @@ sk_sp<SkImage> SkVideoDecoder::convertFrame(const AVFrame* frame) {
     return SkImage::MakeFromBitmap(bm);
 }
 
-SkVideoDecoder::AVFrameUniquePtr SkVideoDecoder::nextFrame(double* timeStamp) {
+SkVideoDecoder::AVFrameSharedPtr SkVideoDecoder::nextFrame(double* timeStamp) {
     double defaultTimeStampStorage = 0;
     if (!timeStamp) {
         timeStamp = &defaultTimeStampStorage;
     }
 
     if (fFormatCtx == nullptr) {
-        return AVFrameUniquePtr{nullptr, frameDeleter};
+        return AVFrameSharedPtr{nullptr, frameDeleter};
     }
 
     if (fMode == kProcessing_Mode) {
@@ -319,7 +319,7 @@ SkVideoDecoder::AVFrameUniquePtr SkVideoDecoder::nextFrame(double* timeStamp) {
     return AVFrameUniquePtr{nullptr, frameDeleter};
 }
 
-sk_sp<SkImage> SkVideoDecoder::toImage(AVFrameUniquePtr&& frame) {
+sk_sp<SkImage> SkVideoDecoder::toImage(const AVFrameSharedPtr& frame) {
     return convertFrame(frame.get());
 }
 
